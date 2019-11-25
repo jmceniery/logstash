@@ -1,0 +1,247 @@
+#Install elasticsearch and set permissions
+- hosts: ls-esnode-rpm
+
+  tasks:
+    - name: Copy across the template repo config file
+      template: 
+        src: elasticsearch.repo
+        dest: /etc/yum.repos.d/
+      become: yes
+      tags:
+        - elasticsearch
+        - two
+        - three
+
+    - name: Install Elastic
+      yum: 
+        name: elasticsearch
+        state: installed
+      become: yes
+      tags:
+        - elasticsearch
+        - two
+        - three
+
+    - name: Install Packages
+      yum: 
+        name:
+          - unzip
+        state: installed
+      become: yes
+      tags:
+        - elasticsearch
+        - two
+        - three
+
+    # Copy across the template files
+    - name: Copy over elasticsearch.yml template file
+      template:
+          src: elasticsearch.yml.j2
+          dest: /etc/elasticsearch/elasticsearch.yml
+      become: yes
+      tags:
+        - copyTemplate
+        - two
+        - three
+
+    - name: Copy over jvm.options template file
+      template:
+          src: jvm.options.j2
+          dest: /etc/elasticsearch/jvm.options
+      become: yes
+      tags:
+        - two
+        - three
+
+    - name: Configure Elasticsearch to start automatically when the system boots up
+      command: "/bin/systemctl {{ item }}"
+      with_items:
+        - daemon-reload
+        - enable elasticsearch.service
+      become: yes
+      tags:
+        - elasticsearch
+        - startup
+
+    - name: Stop the elasticsearch service
+      command: systemctl stop elasticsearch.service 
+      become: yes
+      tags:
+        - never
+        - stopcluster
+
+    - name: Start the elasticsearch service
+      command: systemctl start elasticsearch.service 
+      become: yes
+      tags:
+        - startcluster 
+
+    - name: Test Connectivity
+      command: "curl -X GET 'http://{{ ansible_eth1.ipv4.address }}:9200?pretty'"
+      register: connectivity
+      tags:
+        - conn
+    - debug:
+        var: connectivity
+      tags:
+        - conn
+
+    - name: Change the ILM Interval so that we can better see if rollover is occurring
+      command: "curl -XPUT 'http://{{ ansible_eth1.ipv4.address }}:9200/_cluster/settings' -H 'Content-Type: application/json' -d'{    \"persistent\" : {        \"indices.lifecycle.poll_interval\": \"5s\"    }}'"
+
+
+
+# Install Kibana on the master node.
+- hosts: es-kibana-node-rpm
+
+  tasks:
+    - name: Install Kibana via rpm
+      yum: 
+        name: kibana
+        state: installed
+      become: yes
+      tags:
+        - installKibana
+
+    - name: Configure Kibana to start automatically when the system boots up
+      command: "/bin/systemctl {{ item }}"
+      with_items:
+        - daemon-reload
+        - enable kibana.service
+      become: yes
+      tags:
+        - installKibana
+
+# Configure Kibana
+
+    - name: Copy over kibana.yml template file
+      template:
+          src: kibana.yml.j2
+          dest: /etc/kibana/kibana.yml
+      become: yes
+      tags:
+        - configure
+        - kibanaConfiguration
+
+    # Start the Kibana Service
+    - name: Start the kibana service
+      command: systemctl start kibana.service 
+      become: yes
+      tags:
+        - configure
+        - startup         
+    
+    # Restart Kibana
+    - name: Restart the Kibana service
+      command: systemctl restart kibana.service 
+      become: yes
+      tags:
+        - restart 
+        - never
+  
+### Log Stash Installation
+
+- hosts: ls-nodes-rpm
+
+  tasks:
+    - name: Copy across the template repo config file
+      template: 
+        src: elasticsearch.repo
+        dest: /etc/yum.repos.d/
+      become: yes
+      tags:
+        - logstash
+        - two
+        - three
+
+    - name: Install Logstash
+      yum: 
+        name: logstash
+        state: installed
+      become: yes
+      tags:
+        - logstash
+
+    - name: Java install java 8
+      yum: 
+        name: java-1.8.0-openjdk-devel
+        state: present
+      become: yes
+      tags: 
+        - java
+        - logstash
+
+    - name: add the JAVA_HOME directory
+      lineinfile:
+        path: /home/vagrant/.bash_profile
+        regexp: '^export JAVA_HOME='
+        line: export JAVA_HOME=”/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.232.b09-0.el7_7.x86_64/jre/bin/java”
+      tags: 
+        - java
+        - logstash
+
+    - name: Copy over pipeline2.conf template file
+      template:
+          src: pipeline2.conf.j2
+          dest: /usr/share/logstash/pipeline2.conf
+      become: yes
+      tags:
+        - logstash
+        - pipeline
+
+    - name: Copy over logstash.yml template file
+      template:
+          src: logstash.yml.j2
+          dest: /etc/logstash/logstash.yml
+      become: yes
+      tags:
+        - logstash
+
+
+- hosts: filebeat-nodes-rpm
+  tasks:
+  - name: Copy across the template repo config file
+    template: 
+      src: elasticsearch.repo
+      dest: /etc/yum.repos.d/
+    become: yes
+    tags:
+      - filebeat
+
+  - name: Install filebeat
+    yum: 
+      name: filebeat
+      state: installed
+    become: yes
+    tags:
+      - filebeat
+
+  - name: Copy across the template repo config file
+    template: 
+      src: filebeat.yml.j2
+      dest: /etc/filebeat/filebeat.yml
+    become: yes
+    tags:
+      - filebeat
+      - reingest
+
+  # - name: Delete the filebeat registry files so we can re-ingest the existing data.
+  #   command: "{{ item }}"
+  #   with_items:
+  #     # - /var/lib/filebeat/registry/filebeat/meta.json
+  #     # - /var/lib/filebeat/registry/filebeat/meta.json
+  #     # - /usr/share/filebeat/bin/data/meta.json
+  #     - rm -R /usr/share/filebeat/bin/data/registry
+  #   become: yes
+  #   tags:
+  #     - reingest
+    
+  # Running this manually at the moment so I can see the output easily
+  # - name: Start Filebeat 
+  #   command: "/bin/systemctl {{ item }}"
+  #   with_items:
+  #     - export FILEBEAT=/usr/share/filebeat
+  #     - $FILEBEAT/bin/filebeat -e -c /etc/filebeat/filebeat.yml -d "publish"
+  #   become: yes
+  #   tags:
+  #     - reingest

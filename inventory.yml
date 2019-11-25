@@ -1,0 +1,27 @@
+ls-esnode-rpm:
+  hosts:
+    ls-esnode-rpm:                    # hostname
+      ansible_host: 192.168.50.35   # ip address
+      ansible_user: vagrant
+      ansible_ssh_private_key_file: vagrant/.vagrant/machines/ls-esnode-rpm/virtualbox/private_key
+
+ls-nodes-rpm:
+  hosts:
+    ls-node1-rpm:                    # hostname
+      ansible_host: 192.168.50.36   # ip address
+      ansible_user: vagrant
+      ansible_ssh_private_key_file: vagrant/.vagrant/machines/ls-node1-rpm/virtualbox/private_key
+
+filebeat-nodes-rpm:
+  hosts:
+    ls-node1-rpm:                    # hostname
+      ansible_host: 192.168.50.36   # ip address
+      ansible_user: vagrant
+      ansible_ssh_private_key_file: vagrant/.vagrant/machines/ls-node1-rpm/virtualbox/private_key
+
+es-kibana-node-rpm:
+  hosts:
+    ls-esnode-rpm:                    # hostname
+      ansible_host: 192.168.50.35   # ip address
+      ansible_user: vagrant
+      ansible_ssh_private_key_file: vagrant/.vagrant/machines/ls-esnode-rpm/virtualbox/private_key

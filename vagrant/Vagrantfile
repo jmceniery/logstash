@@ -1,0 +1,28 @@
+DEFAULT_BASE_BOX = "centos/7"
+cpuCap = 10	
+
+serverCPU = 1
+
+Vagrant.configure("2") do |config|
+    config.vm.define "ls-esnode-rpm" do |server1|
+      server1.vm.box = DEFAULT_BASE_BOX
+      server1.vm.hostname = "ls-esnode-rpm"
+      server1.vm.network :private_network, ip: "192.168.50.35"
+      ram = 1024
+      server1.vm.provider :virtualbox do |vb|
+        vb.name = "ls-esnode-rpm"
+          vb.customize ["modifyvm", :id, "--cpus", serverCPU, "--memory", ram]
+        end
+    end
+
+    config.vm.define "ls-node1-rpm" do |server2|
+        server2.vm.box = DEFAULT_BASE_BOX
+        server2.vm.hostname = "ls-node1-rpm"
+        server2.vm.network :private_network, ip: "192.168.50.36"
+        ram = 1024
+        server2.vm.provider :virtualbox do |vb|
+          vb.name = "ls-node1-rpm"
+            vb.customize ["modifyvm", :id, "--cpus", serverCPU, "--memory", ram]
+          end
+      end
+end

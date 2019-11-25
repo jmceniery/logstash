@@ -1,0 +1,27 @@
+input {
+    beats {
+        port => "5044"
+    }
+}
+# The filter part of this file is commented out to indicate that it is
+# optional.
+filter {
+    grok {
+        match => { "message" => "%{COMBINEDAPACHELOG}"}
+    }
+    geoip {
+        source => "clientip"
+    }
+}
+output {
+    # Just write the output to standard out
+    #  stdout { codec => rubydebug }
+
+    # Push it to elasticsearch.
+    elasticsearch {
+        hosts => [ "{{ hostvars['ls-esnode-rpm']['ansible_eth1']['ipv4']['address'] }}:9200" ]
+        ilm_rollover_alias => "test-threat-logs"
+        ilm_pattern => "000001"
+        ilm_policy => "test-logs"
+    }
+}
